@@ -61,3 +61,10 @@ embed("cover.jpg", "stego.png", b"top-secret", key=9876)
 payload = extract("stego.png", key=9876)
 print(payload)
 ```
+
+## Examples
+Original
+![original](https://github.com/submit-a-ticket/ffsecret/blob/main/initial.png?raw=true)
+
+Watermark embeded (extreme preset with crop safe)
+![original](https://github.com/submit-a-ticket/ffsecret/blob/main/stego.png?raw=true)
