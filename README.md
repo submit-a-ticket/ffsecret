@@ -22,7 +22,14 @@ python -m ffsecret extract stego.png --key 4242 -o recovered.bin
 ## Parameters
 * `--alpha` – embedding strength (default `0.1`). Lower = less visible but less robust.
 * `--spread` – number of coefficient pairs per bit (default `5`). Higher = better robustness, lower capacity.
-* `--preset robust` – shorthand for `--alpha 0.25 --spread 3` (higher robustness on flat images).
+Presets (choose one with `--preset`)
+
+| preset   | alpha | spread | visibility | typical use |
+|----------|-------|--------|-------------|--------------|
+| low      | 0.05  | 7      | invisible   | archival where no processing expected |
+| medium   | 0.10  | 5      | imperceptible | everyday photos (default) |
+| high     | 0.25  | 3      | faint texture | survives one JPEG re-save / social-media upload |
+| extreme  | 0.40  | 1      | visible speckle | forensic, survives heavy recompression |
 
 ## How it works
 FFSecret hides a small payload in the Fourier domain of the image luminance:

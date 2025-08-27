@@ -22,7 +22,13 @@ def _parse_cli():
     p_embed.add_argument("--key", "-k", type=int, required=True, help="Secret integer key")
     p_embed.add_argument("--alpha", type=float, help="Embedding strength (default: 0.1 or preset)")
     p_embed.add_argument("--spread", type=int, help="Coefficient pairs per bit (default: 5 or preset)")
-    p_embed.add_argument("--preset", choices=["default", "robust"], default="default", help="Parameter preset")
+    p_embed.add_argument("--crop-safe", action="store_true", help="Enable crop-tolerant tiling mode")
+    p_embed.add_argument(
+        "--preset",
+        choices=["low", "medium", "high", "extreme"],
+        default="medium",
+        help="Quality/robustness preset",
+    )
 
     # ------------------------------------------------------------
     # extract sub-command
@@ -32,8 +38,15 @@ def _parse_cli():
     p_extract.add_argument("--key", "-k", type=int, required=True, help="Secret integer key")
     p_extract.add_argument("--alpha", type=float, help="Embedding strength (must match embed side)")
     p_extract.add_argument("--spread", type=int, help="Spread factor (must match embed side)")
-    p_extract.add_argument("--preset", choices=["default", "robust"], default="default", help="Parameter preset")
-    p_extract.add_argument("--output", "-o", type=Path, help="Write extracted bytes to file instead of stdout")
+    p_extract.add_argument("--crop-safe", action="store_true", help="Expect crop-tolerant tiling mode")
+    p_extract.add_argument(
+        "--preset",
+        choices=["low", "medium", "high", "extreme"],
+        default="medium",
+        help="Quality/robustness preset (must match embed)",
+    )
+    p_extract.add_argument("--output", "-o", type=Path, help="Write extracted bytes to file; if omitted, prints to stdout")
+    p_extract.add_argument("--show", choices=["hex", "text"], help="Print payload as hex or utf-8 text (overrides --output)")
 
     return parser.parse_args()
 
@@ -42,10 +55,14 @@ def main():
     args = _parse_cli()
 
     def resolve_params(preset: str, alpha_opt, spread_opt):
-        if preset == "robust":
-            alpha_def, spread_def = 0.25, 3
-        else:
-            alpha_def, spread_def = 0.1, 5
+        table = {
+            "low": (0.05, 7),      # almost imperceptible, fragile
+            "medium": (0.1, 5),    # default balance
+            "high": (0.25, 3),     # robust, survives mild recompression
+            "extreme": (0.4, 1),   # visible speckle but survives heavy attacks
+        }
+
+        alpha_def, spread_def = table[preset]
 
         alpha_val = alpha_opt if alpha_opt is not None else alpha_def
         spread_val = spread_opt if spread_opt is not None else spread_def
@@ -68,6 +85,7 @@ def main():
             args.key,
             alpha=alpha_val,
             spread=spread_val,
+            crop_safe=args.crop_safe,
         )
         print(f"[ffsecret] Embedded {len(data)} bytes into {args.output}")
 
@@ -79,12 +97,19 @@ def main():
             args.key,
             alpha=alpha_val,
             spread=spread_val,
+            crop_safe=args.crop_safe,
         )
-        if args.output:
+        if args.show == "hex":
+            print(data.hex())
+        elif args.show == "text":
+            try:
+                print(data.decode("utf-8", errors="replace"))
+            except Exception:
+                print("[ffsecret] Payload is not valid UTF-8; use --show hex")
+        elif args.output:
             args.output.write_bytes(data)
             print(f"[ffsecret] Extracted {len(data)} bytes -> {args.output}")
         else:
-            # Binary-safe write to stdout
             sys.stdout.buffer.write(data)
 
 
